@@ -1,5 +1,7 @@
 import { FieldDefinition, Relations, SchemaAST } from "@/types";
 
+
+
 export function parser(content: string): SchemaAST {
   const extractModels = (s: string) => {
     const reg = /model\s+(\w+)\s+\{([\s\S]*?)^\}/gm;
@@ -84,6 +86,7 @@ export function parser(content: string): SchemaAST {
       { ...modelData, fields: Object.fromEntries(fields) },
     ];
   };
+  
   const models = Object.fromEntries(
     extractModels(content).map((m) => parseModel(m))
   );

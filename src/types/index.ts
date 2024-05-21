@@ -1,3 +1,11 @@
+import {
+  DefaultEdgeOptions,
+  Edge,
+  EdgeProps,
+  Node,
+  NodeProps,
+} from "reactflow";
+
 export interface SchemaAST {
   dbType: string;
   relationMode: string | undefined;
@@ -52,3 +60,24 @@ export interface Relations {
   };
   id: string;
 }
+
+interface NodesData {
+  model: {
+    name: string;
+    fields: {
+      name: string;
+      dType: string;
+      isHandle: string;
+      type: "source" | "target";
+    }[];
+  };
+}
+
+interface EdgesData {
+  type: Relations["type"];
+}
+
+export type CustomNodeProps = NodeProps<NodesData>;
+export type CustomEdgeProps = EdgeProps<EdgesData>;
+export type CustomNode = Node<NodesData>;
+export type CustomEdge = Edge<EdgesData>;
