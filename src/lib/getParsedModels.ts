@@ -7,6 +7,8 @@ export const getParsedModels = (blob: string) => {
   );
 };
 
+export type Models = ReturnType<typeof getParsedModels>;
+
 const PrismaRegExp = {
   getCompositeId: [/@@id\(\[([^\]]+)\]\)/, /@@id\(fields:\[([^\]]+)\]\)/],
   isFieldIterable: /\[\]$/,

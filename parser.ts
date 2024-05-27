@@ -1,7 +1,5 @@
 import { FieldDefinition, Relations, SchemaAST } from "@/types";
 
-
-
 export function parser(content: string): SchemaAST {
   const extractModels = (s: string) => {
     const reg = /model\s+(\w+)\s+\{([\s\S]*?)^\}/gm;
@@ -86,7 +84,7 @@ export function parser(content: string): SchemaAST {
       { ...modelData, fields: Object.fromEntries(fields) },
     ];
   };
-  
+
   const models = Object.fromEntries(
     extractModels(content).map((m) => parseModel(m))
   );
@@ -297,13 +295,13 @@ export function parser(content: string): SchemaAST {
   };
 }
 
-function cleanSchema(content: string) {
-  const multiLine = /\/\*[\s\S]*?\*\//g;
-  const singleLine = /\/\/[^\n]*\n/g;
+export function cleanSchema(content: string) {
+  const multiLineComments = /\/\*[\s\S]*?\*\//g;
+  const singleLineComments = /\/\/[^\n]*\n/g;
   const emptyLine = /^\s*\n/gm;
   return content
-    .replace(multiLine, "\n")
-    .replace(singleLine, "\n")
+    .replace(multiLineComments, "\n")
+    .replace(singleLineComments, "\n")
     .replace(emptyLine, "\n");
 }
 

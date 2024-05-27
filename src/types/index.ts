@@ -1,53 +1,46 @@
-import {
-  DefaultEdgeOptions,
-  Edge,
-  EdgeProps,
-  Node,
-  NodeProps,
-} from "reactflow";
+import { Edge, EdgeProps, Node, NodeProps } from "reactflow";
 
-export interface SchemaAST {
-  dbType: string;
-  relationMode: string | undefined;
-  models: {
-    [key: string]: {
-      name: string;
-      blockAttributes: string[];
-      fields: {
-        [key: string]: FieldDefinition;
-      };
-    };
+export type ModelData = {
+  name: string;
+  primaryKey: string;
+  foriegnKeys: string[];
+  fields: {
+    [key: string]: FieldDefinition;
   };
-  relations: Relations[];
-}
+};
 
-export interface FieldDefinition {
+export type RawModelData = {
+  name: string;
+  content: string;
+};
+
+export type FieldDefinition = {
+  isPrimaryKey: boolean;
+  isForiegnKey: boolean;
   name: string;
   dType: string;
   optional: boolean;
   iterable: boolean;
-  attributes: string[];
   isRelation: boolean;
   relation: {
-    fields: string[];
-    references: string[];
-    map: string[];
-    name: string;
-    onUpdate: string[];
-    onDelete: string[];
-  };
-}
+    foriegnKey: string | null;
+    references: string | null;
+    name: string | null;
+  } | null;
+};
 
-export interface Relations {
-  type:
-    | "o-o"
-    | "o-m"
-    | "m-m-i"
-    | "m-m-e"
-    | "self-o-o"
-    | "self-o-m"
-    | "self-m-m-i"
-    | "self-m-m-e";
+type RelationType =
+  | "one-one"
+  | "one-many"
+  | "many-many-implicit"
+  | "many-many-explicit"
+  | "self-one-one"
+  | "self-one-many"
+  | "self-many-many-explicit"
+  | "self-many-many-implicit";
+
+export interface Relation {
+  type: RelationType;
   between: [string, string];
   name: string | null;
   from: {
@@ -60,24 +53,3 @@ export interface Relations {
   };
   id: string;
 }
-
-interface NodesData {
-  model: {
-    name: string;
-    fields: {
-      name: string;
-      dType: string;
-      isHandle: string;
-      type: "source" | "target";
-    }[];
-  };
-}
-
-interface EdgesData {
-  type: Relations["type"];
-}
-
-export type CustomNodeProps = NodeProps<NodesData>;
-export type CustomEdgeProps = EdgeProps<EdgesData>;
-export type CustomNode = Node<NodesData>;
-export type CustomEdge = Edge<EdgesData>;
