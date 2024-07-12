@@ -1,13 +1,11 @@
-import { ModelData, RawModelData } from "@/types";
+import { ModelData, Models, RawModelData } from "@/types";
 
-export const getParsedModels = (blob: string) => {
+export const getParsedModels = (blob: string): Models => {
   const rawModelData = extractModels(blob);
   return Object.fromEntries(
     rawModelData.map((data) => [data.name, parseModel(data)])
   );
 };
-
-export type Models = ReturnType<typeof getParsedModels>;
 
 const PrismaRegExp = {
   getCompositeId: [/@@id\(\[([^\]]+)\]\)/, /@@id\(fields:\[([^\]]+)\]\)/],
@@ -70,6 +68,8 @@ const parseModel = (rawModelData: RawModelData) => {
     name: rawModelData.name,
     primaryKey: "",
     foriegnKeys: [],
+    relatedTo: new Set<string>(),
+    relations: new Map(),
   };
   const rawModelFields = rawModelData.content
     .split("\n")
@@ -129,6 +129,7 @@ const parseModel = (rawModelData: RawModelData) => {
         isPrimaryKey: !!modelData.primaryKey.length,
         iterable: isIterable === null ? false : true,
         optional: isOptional === null ? false : true,
+        handle: {},
       };
     } else {
       modelData.fields[fieldName] = {
@@ -139,6 +140,7 @@ const parseModel = (rawModelData: RawModelData) => {
         isPrimaryKey: !!modelData.primaryKey.length,
         iterable: isIterable === null ? false : true,
         optional: isOptional === null ? false : true,
+        handle: {},
         relation: {
           foriegnKey: isRelation.field,
           name: isRelation.relName,

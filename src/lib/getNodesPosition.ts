@@ -1,53 +1,140 @@
-import { ModelData, Relation } from "@/types";
-import * as d3 from "d3";
-interface ModelNode {
-  id: string;
-  position: {
-    x: number;
-    y: number;
-  };
-  modelData: ModelData;
-  data: {
-    label: string;
-  };
-}
+import { CustomEdge, CustomNode, Models } from "@/types";
+import { nanoid } from "nanoid";
+import { cosDeg, sinDeg } from "./utils";
+import { Position, MarkerType } from "reactflow";
 
-export const getNodesPosition = (relations: Relation[]) => {
-  const modelNames = Array.from(
-    new Set(relations.map((r) => r.between).flat(2))
+export const getNodesAndEdges = (
+  models: Models,
+  modelName: string
+): { nodes: CustomNode[]; edges: CustomEdge[] } => {
+  console.log(
+    Object.values(models)
+      .filter((v) => v.relations.size > 0)
+      .map((v) => v.name)
   );
-  const modelIndex = new Map(modelNames.map((modelName, i) => [modelName, i]));
+  const targetModel = models[modelName];
+  if (!targetModel) throw new Error("invalid model name");
 
-  const nodes: d3.SimulationNodeDatum[] = modelNames.map((m) => ({ id: m }));
+  console.log(targetModel.relations);
+  const nodeHeight = 400;
 
-  const links: d3.SimulationLinkDatum<d3.SimulationNodeDatum>[] = relations.map(
-    (relation) => ({
-      source: nodes[modelIndex.get(relation.from.modelName)!],
-      target: nodes[modelIndex.get(relation.to.modelName)!],
-    })
-  );
+  const nodes: CustomNode[] = [];
+  const edges: CustomEdge[] = [];
 
-  // creating simulation
-  const width = 1200;
-  const height = 400;
-  const simulation = d3
-    .forceSimulation(nodes)
-    .force("link", d3.forceLink(links).distance(100))
-    .force("charge", d3.forceManyBody().strength(-500))
-    .force("center", d3.forceCenter(width / 2, height / 2))
-    .stop();
+  const relations = Array.from(targetModel.relations.entries());
 
-  // running simulation
-  for (let i = 0; i < 300; ++i) simulation.tick();
+  const totalRelations = targetModel.relatedTo.size;
+  const baseRadius = 300 + 60 * totalRelations;
+  const angleIncrement = Math.min(60, Math.floor(360 / totalRelations));
 
-  return nodes.map((node) => ({
-    id: node.id as string,
-    position: {
-      x: node.x!,
-      y: node.y!,
-    },
-    data: {
-      label: node.id as string,
-    },
-  }));
+  for (let i = 0; i < relations.length; i++) {
+    const relation = relations[i];
+    const nodeId = relation[0];
+
+    if (nodeId === modelName) continue;
+
+    (() => {
+      const angle = -60 + i * angleIncrement;
+
+      const pos = angle > 120 ? "left" : "right";
+
+      // random experiment
+      const xOffset =
+        (angle > -30 && angle < 60) || angle > 180
+          ? 1.8
+          : angle > 30 && angle < 90
+          ? 4
+          : angle > 90 && angle < 120
+          ? -4
+          : 1;
+      const yOffset =
+        angle > -30 && angle < 0
+          ? 3
+          : angle > 0 && angle < 30
+          ? 0
+          : angle > 30 && angle < 60
+          ? 0.8
+          : angle > 180
+          ? 1.2
+          : 1;
+
+      const x =
+        totalRelations > 6
+          ? baseRadius * cosDeg(angle) * xOffset
+          : baseRadius * cosDeg(angle);
+      const y =
+        totalRelations > 6
+          ? baseRadius * sinDeg(angle) * yOffset
+          : baseRadius * sinDeg(angle);
+
+      relation[1].forEach((rel) => {
+        const sourceField =
+          models[rel.from.modelName].fields[rel.from.modelField];
+
+        const sourceHandleId =
+          pos === "right"
+            ? sourceField.handle?.sourceRight
+              ? sourceField.handle.sourceRight.id
+              : nanoid(5)
+            : sourceField.handle?.sourceLeft
+            ? sourceField.handle.sourceLeft.id
+            : nanoid(5);
+
+        if (pos === "right" && !sourceField.handle.sourceRight) {
+          sourceField.handle.sourceRight = {
+            id: sourceHandleId,
+            position: Position.Right,
+          };
+        }
+        if (pos === "left" && !sourceField.handle.sourceLeft) {
+          sourceField.handle.sourceLeft = {
+            id: sourceHandleId,
+            position: Position.Left,
+          };
+        }
+
+        const targetField = models[rel.to.modelName].fields[rel.to.modelField];
+        const targetHandleId = targetField.handle?.target?.id ?? nanoid(5);
+
+        if (!targetField.handle.target) {
+          targetField.handle.target = {
+            id: targetHandleId,
+            position: pos === "right" ? Position.Left : Position.Right,
+          };
+        }
+
+        edges.push({
+          id: nanoid(5),
+          source: rel.from.modelName,
+          target: rel.to.modelName,
+          data: rel.type,
+          sourceHandle: sourceHandleId,
+          targetHandle: targetHandleId,
+          markerEnd: MarkerType.Arrow,
+        });
+      });
+
+      nodes.push({
+        data: {
+          name: nodeId,
+          fields: models[nodeId].fields,
+        },
+        type: "customNode",
+        id: nodeId,
+        position: {
+          x,
+          y,
+        },
+      });
+    })();
+  }
+
+  nodes.push({
+    data: { name: targetModel.name, fields: targetModel.fields },
+    id: targetModel.name,
+    position: { x: 0, y: 0 },
+    type: "customNode",
+  });
+
+  return { nodes, edges };
 };

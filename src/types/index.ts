@@ -1,4 +1,4 @@
-import { Edge, EdgeProps, Node, NodeProps } from "reactflow";
+import { Node, Edge, Position } from "reactflow";
 
 export type ModelData = {
   name: string;
@@ -7,6 +7,12 @@ export type ModelData = {
   fields: {
     [key: string]: FieldDefinition;
   };
+  relatedTo: Set<string>;
+  relations: Map<string, Relation[]>;
+};
+
+export type Models = {
+  [key: string]: ModelData;
 };
 
 export type RawModelData = {
@@ -27,17 +33,23 @@ export type FieldDefinition = {
     references: string | null;
     name: string | null;
   } | null;
+  handle: {
+    sourceLeft?: HandleData;
+    sourceRight?: HandleData;
+    target?: HandleData;
+  };
 };
 
+type HandleData = { position: Position; id: string };
 type RelationType =
   | "one-one"
   | "one-many"
   | "many-many-implicit"
-  | "many-many-explicit"
+  | "many-many-explicit" //not implemented
   | "self-one-one"
   | "self-one-many"
-  | "self-many-many-explicit"
-  | "self-many-many-implicit";
+  | "self-many-many-explicit" //not implementd
+  | "self-many-many-implicit"; //not implemented
 
 export interface Relation {
   type: RelationType;
@@ -53,3 +65,8 @@ export interface Relation {
   };
   id: string;
 }
+
+export type CustomNodeData = Pick<ModelData, "name" | "fields">;
+
+export type CustomNode = Node<CustomNodeData, "customNode">;
+export type CustomEdge = Edge<RelationType>;

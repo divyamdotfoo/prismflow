@@ -1,5 +1,4 @@
-import { FieldDefinition, Relation, ModelData } from "@/types";
-import { Models } from "./getParsedModels";
+import { FieldDefinition, Relation, ModelData, Models } from "@/types";
 
 type HandleRelationParams = {
   modelData: Models;
@@ -8,8 +7,7 @@ type HandleRelationParams = {
   childField: FieldDefinition;
 };
 
-export const getRelations = (modelData: Models): Relation[] => {
-  const relations: Relation[] = [];
+export const calculateRelations = (modelData: Models) => {
   const modelIterable = Object.values(modelData);
   const ids = new Set<string>();
 
@@ -25,13 +23,12 @@ export const getRelations = (modelData: Models): Relation[] => {
         const relName = field?.relation?.name;
         if (!relName) throw new Error("invalid schema");
 
-        const relation = handleSelfRelations(model, field);
-        if (ids.has(relation.id)) return;
-        relations.push(relation);
-        ids.add(relation.id);
+        handleSelfRelations(model, field, ids);
         return;
       }
       if (!new Set(Object.keys(modelData)).has(parentModel)) return;
+      model.relatedTo.add(parentModel);
+
       const params: HandleRelationParams = {
         modelData,
         parentModel,
@@ -39,16 +36,16 @@ export const getRelations = (modelData: Models): Relation[] => {
         childField: field,
       };
 
-      handleRelations(params, relations, ids);
+      handleRelations(params, ids);
     });
   });
-  return relations;
 };
 
 const handleSelfRelations = (
   model: ModelData,
-  firstRelatedField: FieldDefinition
-): Relation => {
+  firstRelatedField: FieldDefinition,
+  uniqueIds: Set<string>
+) => {
   const relName = firstRelatedField.relation!.name;
 
   const secondField = Object.values(model.fields).find(
@@ -71,7 +68,7 @@ const handleSelfRelations = (
     if (!parentKey || !foriegnKey) {
       throw new Error("invalid schema");
     }
-    return {
+    const rel: Relation = {
       between: [model.name, model.name],
       from: {
         modelName: model.name,
@@ -85,6 +82,13 @@ const handleSelfRelations = (
       },
       id: generateRelId([model.name, model.name], [parentKey, foriegnKey]),
     };
+    if (!uniqueIds.has(rel.id)) {
+      const prevRelations = model.relations.get(model.name) ?? [];
+      model.relations.set(model.name, [...prevRelations, rel]);
+      uniqueIds.add(rel.id);
+    }
+
+    return;
   }
 
   // Handling self one-many relationship
@@ -96,7 +100,7 @@ const handleSelfRelations = (
     if (!parentKey || !foriegnKey) {
       throw new Error("invalid schema");
     }
-    return {
+    const rel: Relation = {
       between: [model.name, model.name],
       from: {
         modelName: model.name,
@@ -110,21 +114,26 @@ const handleSelfRelations = (
       },
       id: generateRelId([model.name, model.name], [parentKey, foriegnKey]),
     };
+    if (!uniqueIds.has(rel.id)) {
+      const prevRelations = model.relations.get(model.name) ?? [];
+      model.relations.set(model.name, [...prevRelations, rel]);
+      uniqueIds.add(rel.id);
+    }
+
+    return;
   }
 
   // no self relationship found
   throw new Error("invalid schema");
 };
 
-const handleRelations = (
-  params: HandleRelationParams,
-  relations: Relation[],
-  ids: Set<string>
-) => {
+const handleRelations = (params: HandleRelationParams, ids: Set<string>) => {
+  const model = params.modelData[params.parentModel];
   const one_one = handleOneOne(params);
   if (one_one) {
     if (ids.has(one_one.id)) return;
-    relations.push(one_one);
+    const prevRelations = model.relations.get(one_one.to.modelName) ?? [];
+    model.relations.set(one_one.to.modelName, [...prevRelations, one_one]);
     ids.add(one_one.id);
     return;
   }
@@ -132,7 +141,8 @@ const handleRelations = (
   const one_many = handleOneMany(params);
   if (one_many) {
     if (ids.has(one_many.id)) return;
-    relations.push(one_many);
+    const prevRelations = model.relations.get(one_many.to.modelName) ?? [];
+    model.relations.set(one_many.to.modelName, [...prevRelations, one_many]);
     ids.add(one_many.id);
     return;
   }
@@ -140,7 +150,12 @@ const handleRelations = (
   const many_many_implicit = handleManyManyImplicit(params);
   if (many_many_implicit) {
     if (ids.has(many_many_implicit.id)) return;
-    relations.push(many_many_implicit);
+    const prevRelations =
+      model.relations.get(many_many_implicit.to.modelName) ?? [];
+    model.relations.set(many_many_implicit.to.modelName, [
+      ...prevRelations,
+      many_many_implicit,
+    ]);
     ids.add(many_many_implicit.id);
     return;
   }
